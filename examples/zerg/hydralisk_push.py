@@ -126,7 +126,7 @@ class Hydralisk(BotAI):
 
 def main():
     run_game(
-        maps.get("(2)CatalystLE"),
+        maps.get("HardwireAIE"),
         [Bot(Race.Zerg, Hydralisk()), Computer(Race.Terran, Difficulty.Medium)],
         realtime=False,
         save_replay_as="ZvT.SC2Replay",
