@@ -143,7 +143,7 @@ class ZergRushBot(BotAI):
 
 def main():
     run_game(
-        maps.get("AcropolisLE"),
+        maps.get("StargazersAIE"),
         [Bot(Race.Zerg, ZergRushBot()), Computer(Race.Terran, Difficulty.Medium)],
         realtime=False,
         save_replay_as="ZvT.SC2Replay",
