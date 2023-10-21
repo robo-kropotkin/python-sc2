@@ -8,8 +8,8 @@ units_defs = [
     {'name': 'Drone', 'requires': '', 'supply': 1},
     {'name': 'Overlord', 'requires': '', 'supply': -8},
     {'name': 'Queen', 'requires': 'Spawning_Pool', 'supply': 2},
-    {'name': 'Zergling', 'requires': 'Spawning_Pool', 'supply': 0.5},
-    {'name': 'Baneling', 'requires': 'Baneling_Nest', 'supply': 0.5},
+    {'name': 'Zergling', 'requires': 'Spawning_Pool', 'supply': 1},
+    {'name': 'Baneling', 'requires': 'Baneling_Nest', 'supply': 1},
     {'name': 'Roach', 'requires': 'Roach_Warren', 'supply': 2},
     {'name': 'Ravager', 'requires': 'Roach_Warren', 'supply': 3},
     {'name': 'Overseer', 'requires': 'Lair', 'supply': -8},
@@ -43,10 +43,13 @@ buildings_defs = [
     {'name': 'Ultralisk_Cavern', 'evolved_from': 'Drone', 'requires': 'Hive', 'supply': 0},
     {'name': 'Greater_Spire', 'evolved_from': 'Spire', 'requires': 'Hive', 'supply': 0}
 ]
-units = {'Drone': 14, 'Overlord': 1}
+units = {'Drone': 12, 'Overlord': 1}
 buildings = {'Hatchery': 1}
 build_order = []
-supply = [14, 16, 16]
+# import json
+# with open("bo.json", 'r') as f:
+#     build_order = json.load(f)
+supply = [12, 14, 14]
 prevBuilt = None
 
 def start_push():
@@ -144,7 +147,7 @@ class SC2BotPicker(Tk):
         if addition['supply'] * addition['quantity'] > supply[1] - supply[0]:
             return
         evolved_from = addition['evolved_from']
-        if evolved_from != 'Larva':
+        if evolved_from != 'Larva' and addition['name'] != 'Queen':
             quantity = addition['quantity']
             if evolved_from == "Drone" or addition['is_unit']:
                 if evolved_from not in units or units[evolved_from] < quantity:
@@ -212,6 +215,8 @@ class SC2BotPicker(Tk):
             evolved_from = "Hydralisk_Den"
         elif entity == "Overseer":
             evolved_from = "Overlord"
+        elif entity == "Queen":
+            evolved_from = ""
         elif entity == "Ravager":
             evolved_from = "Roach"
 
@@ -297,6 +302,7 @@ class SC2BotPicker(Tk):
             if subtraction["supply"] >= 0:
                 supply[0] -= (subtraction["supply"] - origin_supply) * subtraction["quantity"]
             else:
+                supply[0] += origin_supply * subtraction['quantity']
                 supply[2] += subtraction['supply'] * subtraction['quantity']
                 supply[1] = min(supply[2], 200)
             self.update_build_order()
