@@ -46,11 +46,25 @@ buildings_defs = [
 units = {'Drone': 12, 'Overlord': 1}
 buildings = {'Hatchery': 1}
 build_order = []
-# import json
-# with open("bo.json", 'r') as f:
-#     build_order = json.load(f)
+import json
+with open("bo.json", 'r') as f:
+    build_order = json.load(f)
 supply = [12, 14, 14]
 prevBuilt = None
+
+def find_origin_supply(item):
+    evolved_from = item['evolved_from']
+    if evolved_from == 'Larva' or evolved_from == '':
+        return 0
+    else:
+        def is_origin(element):
+            return element['name'] == evolved_from
+
+        try:
+            origin = next(filter(is_origin, units_defs + buildings_defs))
+        except StopIteration:
+            raise StopIteration(f"Origin of {item['name']} not found!")
+        return origin['supply']
 
 def start_push():
     Process(target=macrobot.main, args=(build_order,), daemon=True).start()
@@ -91,6 +105,7 @@ class SC2BotPicker(Tk):
         self.order_label.pack(anchor='w')
         self.order_frame.grid(row=0, column=1, sticky="nesw")
         self.update_army()
+        self.update_build_order()
 
     def create_grid(self):
         row = 0
@@ -142,52 +157,60 @@ class SC2BotPicker(Tk):
 
     def add_to_build_order(self, addition):
         if addition['requires'] != '':
-            if addition['requires'] not in buildings:
+            need_lair_have_hive = addition['requires'] == "Lair" and "Hive" in buildings
+            need_spire_have_gs = addition['requires'] == 'Spire' and 'Greater_Spire' in buildings
+            need_hydra_have_lurker = addition['requires'] == "Hydralisk_Den" and "Lurker_Den" in buildings
+            if addition['requires'] not in buildings and not need_lair_have_hive and not need_spire_have_gs \
+                    and not need_hydra_have_lurker:
                 return
-        if addition['supply'] * addition['quantity'] > supply[1] - supply[0]:
+        origin_supply = find_origin_supply(addition)
+        if (addition['supply'] - origin_supply) * addition['quantity'] > supply[1] - supply[0]:
             return
         evolved_from = addition['evolved_from']
+        quan = addition['quantity']
         if evolved_from != 'Larva' and addition['name'] != 'Queen':
-            quantity = addition['quantity']
             if evolved_from == "Drone" or addition['is_unit']:
-                if evolved_from not in units or units[evolved_from] < quantity:
+                if evolved_from not in units or units[evolved_from] < quan:
                     return
-                elif units[evolved_from] == quantity:
+                elif units[evolved_from] == quan:
                     del units[evolved_from]
                 else:
-                    units[evolved_from] -= quantity
+                    units[evolved_from] -= quan
 
                 def is_origin(item):
                     return item['name'] == evolved_from
-
-                supply[0] -= next(filter(is_origin, units_defs))['supply']
             else:
-                if evolved_from not in buildings or buildings[evolved_from] < quantity:
+                if evolved_from not in buildings or buildings[evolved_from] < quan:
                     return
-                elif buildings[evolved_from] == quantity:
+                elif buildings[evolved_from] == quan:
                     del buildings[evolved_from]
                 else:
-                    buildings[evolved_from] -= quantity
+                    buildings[evolved_from] -= quan
         if len(build_order) > 0 and build_order[-1]["name"] == addition["name"]:
             build_order[-1]["quantity"] += addition["quantity"]
         else:
             build_order.append(addition)
         if addition['is_unit']:
             if addition['name'] in units:
-                units[addition['name']] += addition['quantity']
+                units[addition['name']] += quan
             else:
-                units.update({addition['name']: addition['quantity']})
+                units.update({addition['name']: quan})
         else:
             if addition['name'] in buildings:
-                buildings[addition['name']] += addition['quantity']
+                buildings[addition['name']] += quan
             else:
-                buildings.update({addition['name']: addition['quantity']})
+                buildings.update({addition['name']: quan})
 
-        if addition['supply'] > 0:
-            supply[0] += addition['supply'] * addition['quantity']
+        if addition['supply'] >= 0:
+            supply[0] += (addition['supply'] - origin_supply) * quan
         else:
-            supply[1] = min(200, supply[1] - addition['supply'] * addition['quantity'])
-            supply[2] -= addition['supply'] * addition['quantity']
+            if origin_supply >= 0:
+                supply[0] -= origin_supply
+                supply[2] -= addition['supply'] * quan
+                supply[1] = min(200, supply[2])
+            else:
+                supply[2] -= (addition['supply'] - origin_supply) * quan
+                supply[1] = min(200, supply[2])
 
         self.update_build_order()
         self.update_army()
@@ -269,7 +292,7 @@ class SC2BotPicker(Tk):
                     del buildings[subtraction['name']]
                 else:
                     buildings[subtraction['name']] -= subtraction['quantity']
-            if subtraction['evolved_from'] != 'Larva':
+            if subtraction['evolved_from'] != 'Larva' and subtraction['evolved_from'] != '':
                 if subtraction['evolved_from'] == 'Drone':
                     if 'Drone' in units:
                         units['Drone'] += subtraction['quantity']
@@ -288,22 +311,16 @@ class SC2BotPicker(Tk):
                         else:
                             buildings[evolved_from] = quantity
 
-            if evolved_from == 'Larva':
-                origin_supply = 0
-            else:
-                def is_origin(item):
-                    return item['name'] == evolved_from
-                try:
-                    origin = next(filter(is_origin, units_defs + buildings_defs))
-                except StopIteration:
-                    raise StopIteration(f"Origin of {subtraction['name']} not found!")
-                origin_supply = origin['supply']
+            origin_supply = find_origin_supply(subtraction)
 
             if subtraction["supply"] >= 0:
                 supply[0] -= (subtraction["supply"] - origin_supply) * subtraction["quantity"]
             else:
-                supply[0] += origin_supply * subtraction['quantity']
-                supply[2] += subtraction['supply'] * subtraction['quantity']
+                if origin_supply >= 0:
+                    supply[0] += origin_supply * subtraction['quantity']
+                    supply[2] += subtraction['supply'] * subtraction['quantity']
+                else:
+                    supply[2] += (subtraction['supply'] - origin_supply) * subtraction['quantity']
                 supply[1] = min(supply[2], 200)
             self.update_build_order()
             self.update_army()
