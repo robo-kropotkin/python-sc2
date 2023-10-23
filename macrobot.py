@@ -123,8 +123,11 @@ class Macrobot(BotAI):
             return False
         elif unit_name == "Infestation_Pit" and not self.structures(UnitTypeId.LAIR).ready:
             return False
-        elif unit_name == "Lurker":
+        elif unit_name == "LurkerMP":
             if not self.structures(UnitTypeId.LURKERDEN).ready or not self.units(UnitTypeId.HYDRALISK).ready:
+                return False
+        elif unit_name == "Lurker_Den":
+            if not self.structures(UnitTypeId.HYDRALISKDEN).ready or not self.structures(UnitTypeId.LAIR).ready:
                 return False
         elif unit_name == "Nydus_Network" and not self.structures(UnitTypeId.LAIR).ready:
             return False
@@ -227,6 +230,8 @@ class Macrobot(BotAI):
 
     # pylint: disable=R0912
     async def on_step(self, iteration):
+        # if self.up_next['name'] == "Hydralisk_Den":
+        #     print("Here!")
         # At the start of the game, find our hq
         if self.hq == -1:
             self.hq: Unit = self.townhalls.first
