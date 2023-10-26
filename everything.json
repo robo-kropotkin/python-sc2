@@ -17,7 +17,7 @@
   },
   {
     "name": "Drone",
-    "quantity": 2,
+    "quantity": 3,
     "is_unit": true,
     "evolved_from": "Larva",
     "requires": "",
@@ -57,7 +57,7 @@
   },
   {
     "name": "Drone",
-    "quantity": 6,
+    "quantity": 4,
     "is_unit": true,
     "evolved_from": "Larva",
     "requires": "",
@@ -72,24 +72,16 @@
     "supply": -6
   },
   {
-    "name": "Queen",
-    "quantity": 2,
-    "is_unit": true,
-    "evolved_from": "",
-    "requires": "Spawning_Pool",
-    "supply": 2
-  },
-  {
-    "name": "Lair",
+    "name": "Drone",
     "quantity": 1,
-    "is_unit": false,
-    "evolved_from": "Hatchery",
-    "requires": "Spawning_Pool",
-    "supply": -6
+    "is_unit": true,
+    "evolved_from": "Larva",
+    "requires": "",
+    "supply": 1
   },
   {
     "name": "Extractor",
-    "quantity": 3,
+    "quantity": 1,
     "is_unit": false,
     "evolved_from": "Drone",
     "requires": "Hatchery",
@@ -97,19 +89,19 @@
   },
   {
     "name": "Drone",
-    "quantity": 10,
+    "quantity": 4,
     "is_unit": true,
     "evolved_from": "Larva",
     "requires": "",
     "supply": 1
   },
   {
-    "name": "Overlord",
+    "name": "Queen",
     "quantity": 2,
     "is_unit": true,
-    "evolved_from": "Larva",
-    "requires": "",
-    "supply": -8
+    "evolved_from": "",
+    "requires": "Spawning_Pool",
+    "supply": 2
   },
   {
     "name": "Zergling",
@@ -120,12 +112,12 @@
     "supply": 1
   },
   {
-    "name": "Baneling_Nest",
+    "name": "Overlord",
     "quantity": 1,
-    "is_unit": false,
-    "evolved_from": "Drone",
-    "requires": "Spawning_Pool",
-    "supply": 0
+    "is_unit": true,
+    "evolved_from": "Larva",
+    "requires": "",
+    "supply": -8
   },
   {
     "name": "Roach_Warren",
@@ -134,6 +126,30 @@
     "evolved_from": "Drone",
     "requires": "Spawning_Pool",
     "supply": 0
+  },
+  {
+    "name": "Baneling_Nest",
+    "quantity": 1,
+    "is_unit": false,
+    "evolved_from": "Drone",
+    "requires": "Spawning_Pool",
+    "supply": 0
+  },
+  {
+    "name": "Drone",
+    "quantity": 2,
+    "is_unit": true,
+    "evolved_from": "Larva",
+    "requires": "",
+    "supply": 1
+  },
+  {
+    "name": "Overlord",
+    "quantity": 1,
+    "is_unit": true,
+    "evolved_from": "Larva",
+    "requires": "",
+    "supply": -8
   },
   {
     "name": "Drone",
@@ -145,27 +161,59 @@
   },
   {
     "name": "Overlord",
-    "quantity": 3,
+    "quantity": 2,
     "is_unit": true,
     "evolved_from": "Larva",
     "requires": "",
     "supply": -8
   },
   {
+    "name": "Lair",
+    "quantity": 1,
+    "is_unit": false,
+    "evolved_from": "Hatchery",
+    "requires": "Spawning_Pool",
+    "supply": -6
+  },
+  {
+    "name": "Queen",
+    "quantity": 1,
+    "is_unit": true,
+    "evolved_from": "",
+    "requires": "Spawning_Pool",
+    "supply": 2
+  },
+  {
+    "name": "Roach",
+    "quantity": 3,
+    "is_unit": true,
+    "evolved_from": "Larva",
+    "requires": "Roach_Warren",
+    "supply": 2
+  },
+  {
+    "name": "Overlord",
+    "quantity": 1,
+    "is_unit": true,
+    "evolved_from": "Larva",
+    "requires": "",
+    "supply": -8
+  },
+  {
+    "name": "Extractor",
+    "quantity": 2,
+    "is_unit": false,
+    "evolved_from": "Drone",
+    "requires": "Hatchery",
+    "supply": 0
+  },
+  {
     "name": "Drone",
-    "quantity": 20,
+    "quantity": 8,
     "is_unit": true,
     "evolved_from": "Larva",
     "requires": "",
     "supply": 1
-  },
-  {
-    "name": "Overlord",
-    "quantity": 5,
-    "is_unit": true,
-    "evolved_from": "Larva",
-    "requires": "",
-    "supply": -8
   },
   {
     "name": "Baneling",
@@ -176,14 +224,6 @@
     "supply": 1
   },
   {
-    "name": "Roach",
-    "quantity": 2,
-    "is_unit": true,
-    "evolved_from": "Larva",
-    "requires": "Roach_Warren",
-    "supply": 2
-  },
-  {
     "name": "Ravager",
     "quantity": 1,
     "is_unit": true,
@@ -192,11 +232,27 @@
     "supply": 3
   },
   {
-    "name": "Overseer",
+    "name": "Overlord",
     "quantity": 1,
     "is_unit": true,
-    "evolved_from": "Overlord",
-    "requires": "Lair",
+    "evolved_from": "Larva",
+    "requires": "",
+    "supply": -8
+  },
+  {
+    "name": "Drone",
+    "quantity": 16,
+    "is_unit": true,
+    "evolved_from": "Larva",
+    "requires": "",
+    "supply": 1
+  },
+  {
+    "name": "Overlord",
+    "quantity": 1,
+    "is_unit": true,
+    "evolved_from": "Larva",
+    "requires": "",
     "supply": -8
   },
   {
@@ -216,14 +272,6 @@
     "supply": 0
   },
   {
-    "name": "Infestation_Pit",
-    "quantity": 1,
-    "is_unit": false,
-    "evolved_from": "Drone",
-    "requires": "Lair",
-    "supply": 0
-  },
-  {
     "name": "Spire",
     "quantity": 1,
     "is_unit": false,
@@ -232,20 +280,36 @@
     "supply": 0
   },
   {
-    "name": "Lurker_Den",
+    "name": "Infestation_Pit",
     "quantity": 1,
     "is_unit": false,
-    "evolved_from": "Hydralisk_Den",
-    "requires": "Hydralisk_Den",
+    "evolved_from": "Drone",
+    "requires": "Lair",
     "supply": 0
   },
   {
-    "name": "Hive",
-    "quantity": 1,
+    "name": "Extractor",
+    "quantity": 2,
     "is_unit": false,
-    "evolved_from": "Lair",
-    "requires": "Infestation_Pit",
-    "supply": -6
+    "evolved_from": "Drone",
+    "requires": "Hatchery",
+    "supply": 0
+  },
+  {
+    "name": "Drone",
+    "quantity": 12,
+    "is_unit": true,
+    "evolved_from": "Larva",
+    "requires": "",
+    "supply": 1
+  },
+  {
+    "name": "Overlord",
+    "quantity": 2,
+    "is_unit": true,
+    "evolved_from": "Larva",
+    "requires": "",
+    "supply": -8
   },
   {
     "name": "Hydralisk",
@@ -256,24 +320,16 @@
     "supply": 2
   },
   {
-    "name": "Lurker",
+    "name": "Lurker_DenMP",
     "quantity": 1,
-    "is_unit": true,
-    "evolved_from": "Hydralisk",
-    "requires": "Lurker_Den",
-    "supply": 3
+    "is_unit": false,
+    "evolved_from": "Drone",
+    "requires": "Hydralisk_Den",
+    "supply": 0
   },
   {
     "name": "Mutalisk",
     "quantity": 1,
-    "is_unit": true,
-    "evolved_from": "Larva",
-    "requires": "Spire",
-    "supply": 2
-  },
-  {
-    "name": "Corruptor",
-    "quantity": 2,
     "is_unit": true,
     "evolved_from": "Larva",
     "requires": "Spire",
@@ -296,12 +352,44 @@
     "supply": 3
   },
   {
-    "name": "Viper",
+    "name": "Hive",
     "quantity": 1,
+    "is_unit": false,
+    "evolved_from": "Lair",
+    "requires": "Infestation_Pit",
+    "supply": -6
+  },
+  {
+    "name": "Overlord",
+    "quantity": 5,
     "is_unit": true,
     "evolved_from": "Larva",
-    "requires": "Hive",
-    "supply": 3
+    "requires": "",
+    "supply": -8
+  },
+  {
+    "name": "Roach",
+    "quantity": 10,
+    "is_unit": true,
+    "evolved_from": "Larva",
+    "requires": "Roach_Warren",
+    "supply": 2
+  },
+  {
+    "name": "Hydralisk",
+    "quantity": 10,
+    "is_unit": true,
+    "evolved_from": "Larva",
+    "requires": "Hydralisk_Den",
+    "supply": 2
+  },
+  {
+    "name": "Overlord",
+    "quantity": 5,
+    "is_unit": true,
+    "evolved_from": "Larva",
+    "requires": "",
+    "supply": -8
   },
   {
     "name": "Ultralisk_Cavern",
@@ -320,6 +408,22 @@
     "supply": 0
   },
   {
+    "name": "Corruptor",
+    "quantity": 2,
+    "is_unit": true,
+    "evolved_from": "Larva",
+    "requires": "Spire",
+    "supply": 2
+  },
+  {
+    "name": "Viper",
+    "quantity": 1,
+    "is_unit": true,
+    "evolved_from": "Larva",
+    "requires": "Hive",
+    "supply": 3
+  },
+  {
     "name": "Ultralisk",
     "quantity": 1,
     "is_unit": true,
@@ -334,5 +438,13 @@
     "evolved_from": "Corruptor",
     "requires": "Greater_Spire",
     "supply": 4
+  },
+  {
+    "name": "LurkerMP",
+    "quantity": 1,
+    "is_unit": true,
+    "evolved_from": "Hydralisk",
+    "requires": "Lurker_DenMP",
+    "supply": 3
   }
 ]

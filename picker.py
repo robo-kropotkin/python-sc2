@@ -15,7 +15,7 @@ units_defs = [
     {'name': 'Overseer', 'requires': 'Lair', 'supply': -8},
     {'name': 'Changeling', 'requires': '', 'supply': 0},
     {'name': 'Hydralisk', 'requires': 'Hydralisk_Den', 'supply': 2},
-    {'name': 'Lurker', 'requires': 'Lurker_Den', 'supply': 3},
+    {'name': 'LurkerMP', 'requires': 'Lurker_DenMP', 'supply': 3},
     {'name': 'Mutalisk', 'requires': 'Spire', 'supply': 2},
     {'name': 'Corruptor', 'requires': 'Spire', 'supply': 2},
     {'name': 'Infestor', 'requires': 'Infestation_Pit', 'supply': 2},
@@ -35,7 +35,7 @@ buildings_defs = [
     {'name': 'Spore_Crawler', 'evolved_from': 'Drone', 'requires': 'Spawning_Pool', 'supply': 0},
     {'name': 'Lair', 'evolved_from': 'Hatchery', 'requires': 'Spawning_Pool', 'supply': -6},
     {'name': 'Hydralisk_Den', 'evolved_from': 'Drone', 'requires': 'Lair', 'supply': 0},
-    {'name': 'Lurker_Den', 'evolved_from': 'Drone', 'requires': 'Hydralisk_Den', 'supply': 0},
+    {'name': 'Lurker_DenMP', 'evolved_from': 'Drone', 'requires': 'Hydralisk_Den', 'supply': 0},
     {'name': 'Nydus_Network', 'evolved_from': 'Drone', 'requires': 'Lair', 'supply': 0},
     {'name': 'Spire', 'evolved_from': 'Drone', 'requires': 'Lair', 'supply': 0},
     {'name': 'Infestation_Pit', 'evolved_from': 'Drone', 'requires': 'Lair', 'supply': 0},
@@ -110,7 +110,7 @@ class SC2BotPicker(Tk):
         row = 0
         col = 0
         for unit in units_defs:
-            file = f'small_icons/Icon_Zerg_{unit["name"]}.png'
+            file = f'small_icons/Units/Icon_Zerg_{unit["name"]}.png'
             self.create_image_with_buttons(file, row, col, True)
             row += 1
             if row > 3:
@@ -120,7 +120,7 @@ class SC2BotPicker(Tk):
         row = 0
         col = 0
         for building in buildings_defs:
-            file = f'small_icons/Icon_Zerg_{building["name"]}.png'
+            file = f'small_icons/Buildings/Icon_Zerg_{building["name"]}.png'
             self.create_image_with_buttons(file, row, col, False)
             row += 1
             if row > 3:
@@ -158,9 +158,7 @@ class SC2BotPicker(Tk):
         if addition['requires'] != '':
             need_lair_have_hive = addition['requires'] == "Lair" and "Hive" in self.buildings
             need_spire_have_gs = addition['requires'] == 'Spire' and 'Greater_Spire' in self.buildings
-            need_hydra_have_lurker = addition['requires'] == "Hydralisk_Den" and "Lurker_Den" in self.buildings
-            if addition['requires'] not in self.buildings and not need_lair_have_hive and not need_spire_have_gs \
-                    and not need_hydra_have_lurker:
+            if addition['requires'] not in self.buildings and not need_lair_have_hive and not need_spire_have_gs:
                 return
         origin_supply = find_origin_supply(addition)
         if (addition['supply'] - origin_supply) * addition['quantity'] > self.supply[1] - self.supply[0]:
@@ -231,10 +229,8 @@ class SC2BotPicker(Tk):
             evolved_from = "Hatchery"
         elif entity == "Hive":
             evolved_from = "Lair"
-        elif entity == "Lurker":
+        elif entity == "LurkerMP":
             evolved_from = "Hydralisk"
-        elif entity == "Lurker_Den":
-            evolved_from = "Hydralisk_Den"
         elif entity == "Overseer":
             evolved_from = "Overlord"
         elif entity == "Queen":
