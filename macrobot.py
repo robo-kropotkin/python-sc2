@@ -292,6 +292,8 @@ class Macrobot(BotAI):
             await self.expand_now()
         elif up_next['name'] == 'Extractor':
             await self.build_extractors(up_next)
+            # Success isn't really False, but it's only used to decrement the required quantity, which build_extractors
+            # already does.
             return False
         elif up_next['name'] == "Queen":
             await self.train_queen()
