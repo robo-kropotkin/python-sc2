@@ -1,3 +1,5 @@
+import io
+
 from sc2 import maps
 from sc2.bot_ai import BotAI
 from sc2.data import Difficulty, Race
@@ -87,21 +89,81 @@ def find_entity_id(name):
         return UnitTypeId.SPORECRAWLER, False
     elif name == "Ultralisk_Cavern":
         return UnitTypeId.ULTRALISKCAVERN, False
+    elif name == "Adaptive_Talons":
+        return UpgradeId.DIGGINGCLAWS, False
+    elif name == "Adrenal_Glands":
+        return UpgradeId.ZERGLINGATTACKSPEED, False
+    elif name == "Anabolic_Synthesis":
+        return UpgradeId.ANABOLICSYNTHESIS, False
+    elif name == "Burrow":
+        return UpgradeId.BURROW, False
+    elif name == "Centrifugal_Hooks":
+        return UpgradeId.CENTRIFICALHOOKS, False
+    elif name == "Chitinous_Plating":
+        return UpgradeId.CHITINOUSPLATING, False
+    elif name == "Flyer_Attack_1":
+        return UpgradeId.ZERGFLYERWEAPONSLEVEL1, False
+    elif name == "Flyer_Attack_2":
+        return UpgradeId.ZERGFLYERWEAPONSLEVEL2, False
+    elif name == "Flyer_Attack_3":
+        return UpgradeId.ZERGFLYERWEAPONSLEVEL3, False
+    elif name == "Flyer_Carapace_1":
+        return UpgradeId.ZERGFLYERARMORSLEVEL1, False
+    elif name == "Flyer_Carapace_2":
+        return UpgradeId.ZERGFLYERARMORSLEVEL2, False
+    elif name == "Flyer_Carapace_3":
+        return UpgradeId.ZERGFLYERARMORSLEVEL3, False
+    elif name == "Glial_Reconstitution":
+        return UpgradeId.GLIALRECONSTITUTION, False
+    elif name == "Grooved_Spines":
+        return UpgradeId.EVOLVEGROOVEDSPINES, False
+    elif name == "Ground_Carapace_1":
+        return UpgradeId.ZERGGROUNDARMORSLEVEL1, False
+    elif name == "Ground_Carapace_2":
+        return UpgradeId.ZERGGROUNDARMORSLEVEL2, False
+    elif name == "Ground_Carapace_3":
+        return UpgradeId.ZERGGROUNDARMORSLEVEL3, False
+    elif name == "Melee_Attacks_1":
+        return UpgradeId.ZERGMELEEWEAPONSLEVEL1, False
+    elif name == "Melee_Attacks_2":
+        return UpgradeId.ZERGMELEEWEAPONSLEVEL2, False
+    elif name == "Melee_Attacks_3":
+        return UpgradeId.ZERGMELEEWEAPONSLEVEL3, False
+    elif name == "Metabolic_Boost":
+        return UpgradeId.ZERGLINGMOVEMENTSPEED, False
+    elif name == "Missile_Attacks_1":
+        return UpgradeId.ZERGMISSILEWEAPONSLEVEL1, False
+    elif name == "Missile_Attacks_2":
+        return UpgradeId.ZERGMISSILEWEAPONSLEVEL2, False
+    elif name == "Missile_Attacks_3":
+        return UpgradeId.ZERGMISSILEWEAPONSLEVEL3, False
+    elif name == "Muscular_Augments":
+        return UpgradeId.EVOLVEMUSCULARAUGMENTS, False
+    elif name == "Neural_Parasite":
+        return UpgradeId.NEURALPARASITE, False
+    elif name == "Pneumatized_Carapace":
+        return UpgradeId.OVERLORDSPEED, False
+    elif name == "Seismic_Spines":
+        return UpgradeId.LURKERRANGE, False
+    elif name == "Tunneling_Claws":
+        return UpgradeId.TUNNELINGCLAWS, False
 
 class Macrobot(BotAI):
-    def __init__(self):
+    def __init__(self, output=None):
         BotAI.__init__(self)
         self.up_next: dict = build_order_queue.get()
         self.urgent = None
         self.taken_geysers: list[int] = []
         self.bases: list[int] = []
-        self.should_have: list[dict] = [{'name': 'Hatchery', 'quantity': 1,
+        self.should_have: list[dict] = [{'name': 'Hatchery', 'quantity': 1, 'is_upgrade': False,
                                          'is_unit': False, 'evolved_from': 'Drone', 'requires': '', 'supply': -6}]
+
         self.missing = Queue()
         self.attack_in: int = 0
         self.should_attack: bool = False
         self.hq = None
         self.check_buffer: int = 0
+        self.output: io.TextIOWrapper = output
 
     def can_build(self, unit_id, unit_name):
         if unit_name == "Baneling" and not self.structures(UnitTypeId.BANELINGNEST).ready:
@@ -202,7 +264,7 @@ class Macrobot(BotAI):
         else:
             await self.units_to_natural(iteration)
 
-    async def build_extractors(self, up_next):
+    async def build_extractors(self, up_next, iteration):
         while self.can_afford(UnitTypeId.EXTRACTOR) and self.workers and up_next['quantity'] > 0:
             for th in self.townhalls.ready:
                 if up_next['quantity'] < 1:
@@ -217,6 +279,7 @@ class Macrobot(BotAI):
                     entry = up_next.copy()
                     entry['quantity'] = 1
                     self.update_should_have({'name': 'Extractor', 'quantity': 1}, entry=entry)
+                    self.output.write({"name": "Extractor", "iteration": iteration}.__str__().replace("'", '"') + ",\n")
                     up_next['quantity'] -= 1
                     break
 
@@ -282,7 +345,7 @@ class Macrobot(BotAI):
             self.update_should_have({'name': evolved_from, 'quantity': -1})
         return True
 
-    async def build_unit_or_building(self, entity_id, origin_id, up_next):
+    async def build_unit_or_building(self, entity_id, origin_id, up_next, iteration):
         larvae: Units = self.larva
         if up_next['evolved_from'] == 'Larva':
             if not larvae:
@@ -291,7 +354,7 @@ class Macrobot(BotAI):
         elif up_next['name'] == 'Hatchery':
             await self.expand_now()
         elif up_next['name'] == 'Extractor':
-            await self.build_extractors(up_next)
+            await self.build_extractors(up_next, iteration)
             # Success isn't really False, but it's only used to decrement the required quantity, which build_extractors
             # already does.
             return False
@@ -301,12 +364,49 @@ class Macrobot(BotAI):
             await self.build(entity_id, near=self.hq.position.towards(self.game_info.map_center, 4))
         elif self.structures.of_type(origin_id).ready.idle + self.units.of_type(origin_id).ready.idle:
             await self.morph_from_unit()
-        if not up_next['is_unit'] and not up_next['name'] == 'Extractor':
-            entry = up_next.copy()
-            entry['quantity'] = 1
-            self.update_should_have({'name': up_next['name'], 'quantity': 1}, entry=entry)
+        if not up_next['name'] == 'Extractor':
+            self.output.write({"name": up_next["name"], "iteration": iteration}.__str__().replace("'", '"') + ",\n")
+            if not up_next['is_unit']:
+                entry = up_next.copy()
+                entry['quantity'] = 1
+                self.update_should_have({'name': up_next['name'], 'quantity': 1}, entry=entry)
         self.check_buffer = 300
         return True
+
+    def advance_queues(self, entity_id):
+        # If built from the urgent queue
+        if self.urgent:
+            if self.missing.empty():
+                self.urgent = None
+            else:
+                self.urgent = self.missing.get()
+        # If built from the normal queue
+        elif build_order_queue.empty():
+            cost = self.game_data.units[entity_id.value].cost
+            self.attack_in = cost.time / 8 + 5
+            self.should_attack = True
+            self.up_next = None
+        else:
+            self.up_next = build_order_queue.get()
+
+    def can_upgrade(self, entity_id, upg):
+        if upg['requires'] != '':
+            requires_id, _ = find_entity_id(upg['requires'])
+            if not self.structures.of_type(requires_id):
+                return False
+        researched_from_id, _ = find_entity_id(upg['researched_from'])
+        if not self.structures.of_type(researched_from_id).ready.idle:
+            return False
+
+        return self.can_afford(entity_id)
+
+    async def upgrade(self, entity_id, researched_from):
+        if researched_from == "Hatchery":
+            researcher = self.townhalls.idle.ready.random
+        else:
+            researcher_id, _ = find_entity_id(researched_from)
+            researcher = self.structures.of_type(researcher_id).ready.idle.random
+        researcher.research(entity_id)
 
     # pylint: disable=R0912
     async def on_step(self, iteration):
@@ -325,32 +425,25 @@ class Macrobot(BotAI):
                 (entity_id, entity_is_unit) = find_entity_id(up_next['name'])
             except TypeError:
                 raise KeyError(up_next['name'])
-            if up_next['evolved_from'] != '':
+            if not up_next['is_upgrade'] and up_next['evolved_from'] != '':
                 (origin_id, origin_is_unit) = find_entity_id(up_next['evolved_from'])
 
         await self.attack_logic(iteration)
 
+        if entity_id and up_next['is_upgrade']:
+            if self.can_upgrade(entity_id, up_next):
+                await self.upgrade(entity_id, up_next['researched_from'])
+                self.output.write({"name": up_next["name"], "iteration": iteration}.__str__().replace("'", '"') + ",\n")
+                self.advance_queues(entity_id)
+
         # Can train next unit / building
-        if entity_id and self.can_build(entity_id, up_next['name']):
-            success = await self.build_unit_or_building(entity_id, origin_id, up_next)
+        elif entity_id and self.can_build(entity_id, up_next['name']):
+            success = await self.build_unit_or_building(entity_id, origin_id, up_next, iteration)
             # The build_extractor function subtracts quantity on its own
             if success:
                 up_next['quantity'] -= 1
             if up_next['quantity'] <= 0:
-                # If built from the urgent queue
-                if self.urgent:
-                    if self.missing.empty():
-                        self.urgent = None
-                    else:
-                        self.urgent = self.missing.get()
-                # If built from the normal queue
-                elif build_order_queue.empty():
-                    cost = self.game_data.units[entity_id.value].cost
-                    self.attack_in = cost.time / 8 + 5
-                    self.should_attack = True
-                    self.up_next = None
-                else:
-                    self.up_next = build_order_queue.get()
+                self.advance_queues(entity_id)
 
         # Check that you have all buildings you should have
         if self.check_buffer > 0:
@@ -381,12 +474,16 @@ def main(build_order):
         json.dump(build_order, f)
     for item in build_order:
         build_order_queue.put(item)
-
+    f = open("Macrobot_Output.json", 'w', encoding='utf-8')
+    f.write("[")
     run_game(
         maps.get("HardwireAIE"),
-        [Bot(Race.Zerg, Macrobot()), Computer(Race.Terran, Difficulty.VeryEasy)],
-        realtime=False
+        [Bot(Race.Zerg, Macrobot(f)), Computer(Race.Terran, Difficulty.VeryEasy)],
+        realtime=False,
+        save_replay_as="Macrobot.SC2Replay"
     )
+    f.write('{"name":"GameEnd"}\n]')
+    f.close()
 
 if __name__ == "__main__":
     main([])

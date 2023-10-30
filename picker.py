@@ -71,7 +71,6 @@ upgrades_defs = [
     {'name': 'Muscular_Augments', 'researched_from': 'Hydralisk_Den', 'requires': 'Lair', 'is_upgrade': True},
     {'name': 'Neural_Parasite', 'researched_from': 'Infestation_Pit', 'requires': '', 'is_upgrade': True},
     {'name': 'Pneumatized_Carapace', 'researched_from': 'Hatchery', 'requires': '', 'is_upgrade': True},
-    {'name': 'Neural_Parasite', 'researched_from': 'Infestation_Pit', 'requires': '', 'is_upgrade': True},
     {'name': 'Seismic_Spines', 'researched_from': 'Lurker_DenMP', 'requires': 'Hive', 'is_upgrade': True},
     {'name': 'Tunneling_Claws', 'researched_from': 'Roach_Warren', 'requires': 'Lair', 'is_upgrade': True}
 ]
@@ -299,7 +298,7 @@ class SC2BotPicker(Tk):
             if entity == "Baneling_Nest" or entity == "Evolution_Chamber" or entity == "Extractor" or entity == \
                     "Hydralisk_Den" or entity == "Infestation_Pit" or entity == "Hatchery" or entity == "Nydus_Network" \
                     or entity == "Roach_Warren" or entity == "Spawning_Pool" or entity == "Spine_Crawler" or entity == \
-                    "Spore_Crawler" or entity == "Spire" or entity == "Ultralisk_Cavern":
+                    "Spore_Crawler" or entity == "Spire" or entity == "Ultralisk_Cavern" or entity == "Lurker_DenMP":
                 evolved_from = "Drone"
             elif entity == "Baneling":
                 evolved_from = "Zergling"
@@ -323,29 +322,13 @@ class SC2BotPicker(Tk):
         def find_entity(item):
             return item['name'] == entity
 
-        if is_unit:
-            try:
-                unit_def = next(filter(find_entity, units_defs))
-                requires = unit_def['requires']
-                entity_supply = unit_def['supply']
-            except StopIteration:
-                raise StopIteration(f"Unit {entity} not found!")
-        elif not is_upgrade:
-            try:
-                building_def = next(filter(find_entity, buildings_defs))
-                requires = building_def['requires']
-                entity_supply = building_def['supply']
-            except StopIteration:
-                raise StopIteration(f"Building {entity} not found!")
-        else:
+        if is_upgrade:
             try:
                 upgrade_def = next(filter(find_entity, upgrades_defs))
                 requires = upgrade_def['requires']
                 researched_from = upgrade_def['researched_from']
             except StopIteration:
                 raise StopIteration(f'Upgrade {entity} not found!')
-
-        if is_upgrade:
             params = {'name': entity,
                       'is_upgrade': True,
                       'researched_from': researched_from,
@@ -354,6 +337,21 @@ class SC2BotPicker(Tk):
             button_research = Button(frame, text='R', command=lambda: self.add_upgrade_to_build_order(params))
             button_research.pack(side="left")
         else:
+            if is_unit:
+                try:
+                    unit_def = next(filter(find_entity, units_defs))
+                    requires = unit_def['requires']
+                    entity_supply = unit_def['supply']
+                except StopIteration:
+                    raise StopIteration(f"Unit {entity} not found!")
+            else:
+                try:
+                    building_def = next(filter(find_entity, buildings_defs))
+                    requires = building_def['requires']
+                    entity_supply = building_def['supply']
+                except StopIteration:
+                    raise StopIteration(f"Building {entity} not found!")
+
             def create_button(quantity):
                 dparams = {'name': entity,
                            'is_upgrade': False,
@@ -362,7 +360,7 @@ class SC2BotPicker(Tk):
                            'evolved_from': evolved_from,
                            'requires': requires,
                            'supply': entity_supply}
-                return Button(frame, text=f"+{quantity}", command=lambda: self.add_to_build_order(dparams))
+                return Button(frame, text=f"+{quantity}", command=lambda: self.add_to_build_order(dparams.copy()))
 
             button_plus_1 = create_button(1)
             button_plus_5 = create_button(5)
@@ -425,7 +423,10 @@ class SC2BotPicker(Tk):
             new_order = json.load(f)
         self.clear()
         for addition in new_order:
-            self.add_to_build_order(addition)
+            if addition['is_upgrade']:
+                self.add_upgrade_to_build_order(addition)
+            else:
+                self.add_to_build_order(addition)
         self.update_army()
         self.update_build_order()
 
