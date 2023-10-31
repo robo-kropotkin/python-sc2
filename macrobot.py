@@ -1,4 +1,5 @@
 import io
+import multiprocessing
 
 from sc2 import maps
 from sc2.bot_ai import BotAI
@@ -149,16 +150,16 @@ def find_entity_id(name):
         return UpgradeId.TUNNELINGCLAWS, False
 
 class Macrobot(BotAI):
-    def __init__(self, output=None):
+    def __init__(self, output=None, child_pipe=None):
         BotAI.__init__(self)
         self.up_next: dict = build_order_queue.get()
-        self.urgent = None
+        self.child_pipe = child_pipe
+        self.urgent = Queue()
+        self.next_urgent = None
         self.taken_geysers: list[int] = []
         self.bases: list[int] = []
         self.should_have: list[dict] = [{'name': 'Hatchery', 'quantity': 1, 'is_upgrade': False,
                                          'is_unit': False, 'evolved_from': 'Drone', 'requires': '', 'supply': -6}]
-
-        self.missing = Queue()
         self.attack_in: int = 0
         self.should_attack: bool = False
         self.hq = None
@@ -310,16 +311,16 @@ class Macrobot(BotAI):
                     u.attack(self.townhalls.first.position.towards(self.game_info.map_center, 10))
 
     # Can only morph with the correct ability id.
-    async def morph_from_unit(self):
-        evolved_from = self.up_next['evolved_from']
+    async def morph_from_unit(self, up_next):
+        evolved_from = up_next['evolved_from']
         (origin_id, origin_is_unit) = find_entity_id(evolved_from)
         try:
-            if self.up_next['is_unit']:
+            if up_next['is_unit']:
                 morpher = self.units.of_type(origin_id).ready.idle.random
             else:
                 morpher = self.structures.of_type(origin_id).ready.idle.random
         except AssertionError:
-            raise AssertionError(self.up_next['name'])
+            raise AssertionError(up_next['name'])
         if not morpher:
             return False
         if evolved_from == "Zergling":
@@ -363,7 +364,7 @@ class Macrobot(BotAI):
         elif up_next['evolved_from'] == "Drone":
             await self.build(entity_id, near=self.hq.position.towards(self.game_info.map_center, 4))
         elif self.structures.of_type(origin_id).ready.idle + self.units.of_type(origin_id).ready.idle:
-            await self.morph_from_unit()
+            await self.morph_from_unit(up_next)
         if not up_next['name'] == 'Extractor':
             self.output.write({"name": up_next["name"], "iteration": iteration}.__str__().replace("'", '"') + ",\n")
             if not up_next['is_unit']:
@@ -375,19 +376,21 @@ class Macrobot(BotAI):
 
     def advance_queues(self, entity_id):
         # If built from the urgent queue
-        if self.urgent:
-            if self.missing.empty():
-                self.urgent = None
+        if self.next_urgent:
+            self.child_pipe.send(1)
+
+        if self.urgent.empty():
+            self.next_urgent = None
+            # If built from the normal queue
+            if build_order_queue.empty():
+                cost = self.game_data.units[entity_id.value].cost
+                self.attack_in = cost.time / 8 + 5
+                self.should_attack = True
+                self.up_next = None
             else:
-                self.urgent = self.missing.get()
-        # If built from the normal queue
-        elif build_order_queue.empty():
-            cost = self.game_data.units[entity_id.value].cost
-            self.attack_in = cost.time / 8 + 5
-            self.should_attack = True
-            self.up_next = None
+                self.up_next = build_order_queue.get()
         else:
-            self.up_next = build_order_queue.get()
+            self.next_urgent = self.urgent.get()
 
     def can_upgrade(self, entity_id, upg):
         if upg['requires'] != '':
@@ -419,7 +422,7 @@ class Macrobot(BotAI):
                     self.bases.append(th.tag)
         entity_id = False
         origin_id = False
-        up_next = self.urgent or self.up_next
+        up_next = self.next_urgent or self.up_next
         if up_next:
             try:
                 (entity_id, entity_is_unit) = find_entity_id(up_next['name'])
@@ -446,19 +449,16 @@ class Macrobot(BotAI):
                 self.advance_queues(entity_id)
 
         # Check that you have all buildings you should have
-        if self.check_buffer > 0:
-            self.check_buffer -= 1
-        elif iteration % 100 == 0:
-            for building in self.should_have:
-                entity_id = find_entity_id(building['name'])
-                if self.structures.of_type(entity_id).amount < building['quantity']:
-                    correction = building.copy()
-                    correction['quantity'] = correction['quantity'] - self.structures.of_type(entity_id).amount
-                    building['quantity'] = self.structures.of_type(entity_id).amount
-                    if self.urgent is None:
-                        self.urgent = correction
-                    else:
-                        self.missing.put(correction)
+        # if self.check_buffer > 0:
+        #     self.check_buffer -= 1
+        # elif iteration % 100 == 0:
+        #     for building in self.should_have:
+        #         entity_id = find_entity_id(building['name'])
+        #         if self.structures.of_type(entity_id).amount < building['quantity']:
+        #             correction = building.copy()
+        #             correction['quantity'] = correction['quantity'] - self.structures.of_type(entity_id).amount
+        #             building['quantity'] = self.structures.of_type(entity_id).amount
+        #             self.urgent.put(correction)
 
         # Send idle queens with >=25 energy to inject
         for queen in self.units(UnitTypeId.QUEEN).idle:
@@ -468,22 +468,25 @@ class Macrobot(BotAI):
 
         await self.distribute_workers(resource_ratio=0)
 
-def main(build_order):
+        if self.child_pipe.poll():
+            self.urgent.put(self.child_pipe.recv())
+
+def main(build_order, child_pipe):
     import json
     with open("bo.json", 'w') as f:
         json.dump(build_order, f)
     for item in build_order:
         build_order_queue.put(item)
-    f = open("Macrobot_Output.json", 'w', encoding='utf-8')
-    f.write("[")
+    output = open("Macrobot_Output.json", 'w', encoding='utf-8')
+    output.write("[")
     run_game(
         maps.get("HardwireAIE"),
-        [Bot(Race.Zerg, Macrobot(f)), Computer(Race.Terran, Difficulty.VeryEasy)],
-        realtime=False,
+        [Bot(Race.Zerg, Macrobot(output, child_pipe)), Computer(Race.Terran, Difficulty.VeryEasy)],
+        realtime=True,
         save_replay_as="Macrobot.SC2Replay"
     )
-    f.write('{"name":"GameEnd"}\n]')
-    f.close()
+    output.write('{"name":"GameEnd"}\n]')
+    output.close()
 
 if __name__ == "__main__":
     main([])

@@ -1,9 +1,8 @@
 from tkinter import Tk, Button, PhotoImage, Label, Frame
-from multiprocessing import Process
-from glob import glob
+from multiprocessing import Process, Pipe
+from asyncio import get_event_loop, sleep
 import macrobot
 
-png_files = glob("small_icons/*.png")
 units_defs = [
     {'name': 'Drone', 'requires': '', 'supply': 1, 'is_upgrade': False},
     {'name': 'Overlord', 'requires': '', 'supply': -8, 'is_upgrade': False},
@@ -99,6 +98,9 @@ class SC2BotPicker(Tk):
     def __init__(self):
         Tk.__init__(self)
         self.build_order = []
+        self.urgent = []
+        self.parent_pipe, self.child_pipe = Pipe()
+        self.game_started = False
         self.supply = [12, 14, 14]
         self.units = {'Drone': 12, 'Overlord': 1}
         self.buildings = {'Hatchery': 1}
@@ -121,7 +123,7 @@ class SC2BotPicker(Tk):
         self.building_label.grid(row=1, sticky="nesw")
         self.supply_label = Label(self.summary_frame, width=80, anchor='w')
         self.supply_label.grid(row=2, sticky='nesw')
-        self.execute_button = Button(self.interface_frame, text="Build!", command=self.start_push)
+        self.execute_button = Button(self.interface_frame, text="Build!", command=self.start_game)
         self.execute_button.pack(side="right")
         self.undo_button = Button(self.interface_frame, text="Undo", command=self.undo)
         self.undo_button.pack(side="right")
@@ -133,9 +135,10 @@ class SC2BotPicker(Tk):
         self.reuse_button.pack(side="right")
         self.interface_frame.grid(row=0, column=0)
         self.order_frame = Frame(self, bg="red", width=50, height=100)
-        self.order_text = "Build Order:\n"
-        self.order_label = Label(self.order_frame, text=self.order_text, width=50, anchor='w', justify='left')
+        self.order_label = Label(self.order_frame, text="Build Order:", width=50, anchor='w', justify='left')
         self.order_label.pack(anchor='w')
+        self.urgent_label = Label(self.order_frame, text="Urgent Additions:", width=50, anchor='w', justify='left')
+        self.urgent_label.pack(anchor='w')
         self.order_frame.grid(row=0, column=1, sticky="nesw")
         self.update_army()
         self.update_build_order()
@@ -201,13 +204,22 @@ class SC2BotPicker(Tk):
         self.supply_label.config(text=supply_text)
 
     def update_build_order(self):
-        build_order_text = "Build Order:\n"
-        for entity in self.build_order:
-            if entity['is_upgrade']:
-                build_order_text += f"\t{entity['name']}\n"
-            else:
-                build_order_text += f"\t{entity['name']} x{entity['quantity']}\n"
-        self.order_label.config(text=build_order_text)
+        if self.game_started:
+            urgent_text = "Urgent Additions:\n"
+            for entity in self.urgent:
+                if entity['is_upgrade']:
+                    urgent_text += f"\t{entity['name']}\n"
+                else:
+                    urgent_text += f"\t{entity['name']} x{entity['quantity']}\n"
+            self.urgent_label.config(text=urgent_text)
+        else:
+            build_order_text = "Build Order:\n"
+            for entity in self.build_order:
+                if entity['is_upgrade']:
+                    build_order_text += f"\t{entity['name']}\n"
+                else:
+                    build_order_text += f"\t{entity['name']} x{entity['quantity']}\n"
+            self.order_label.config(text=build_order_text)
 
     def add_to_build_order(self, addition):
         if addition['requires'] != '':
@@ -241,10 +253,14 @@ class SC2BotPicker(Tk):
                     del self.buildings[evolved_from]
                 else:
                     self.buildings[evolved_from] -= quan
-        if len(self.build_order) > 0 and self.build_order[-1]["name"] == addition["name"]:
-            self.build_order[-1]["quantity"] += addition["quantity"]
+        if self.game_started:
+            self.urgent.append(addition)
+            self.parent_pipe.send(addition)
         else:
-            self.build_order.append(addition)
+            if len(self.build_order) > 0 and self.build_order[-1]["name"] == addition["name"]:
+                self.build_order[-1]["quantity"] += addition["quantity"]
+            else:
+                self.build_order.append(addition)
         if addition['is_unit']:
             if addition['name'] in self.units:
                 self.units[addition['name']] += quan
@@ -289,7 +305,11 @@ class SC2BotPicker(Tk):
             if prereq not in self.upgrades:
                 return
         self.upgrades[addition['name']] = True
-        self.build_order.append(addition)
+        if self.game_started:
+            self.urgent.append(addition)
+            self.parent_pipe.send(addition)
+        else:
+            self.build_order.append(addition)
         self.update_build_order()
 
     def create_buttons(self, frame, entity, is_unit, is_upgrade):
@@ -441,15 +461,73 @@ class SC2BotPicker(Tk):
         self.update_build_order()
 
     def clear(self):
-        self.units = {"Drone": 12, "Overlord": 1}
-        self.buildings = {"Hatchery": 1}
-        self.supply = [12, 14, 14]
-        self.build_order = []
-        self.update_army()
+        if self.game_started:
+            self.parent_pipe.send("Clear")
+            for subtraction in self.urgent:
+                if subtraction['is_upgrade']:
+                    return self.undo_upgrade(subtraction)
+                evolved_from = subtraction['evolved_from']
+                quan = subtraction['quantity']
+                if subtraction['is_unit']:
+                    if self.units[subtraction['name']] == quan:
+                        del self.units[subtraction['name']]
+                    else:
+                        self.units[subtraction['name']] -= quan
+                else:
+                    if self.buildings[subtraction['name']] == quan:
+                        del self.buildings[subtraction['name']]
+                    else:
+                        self.buildings[subtraction['name']] -= subtraction['quantity']
+                if subtraction['evolved_from'] != 'Larva' and subtraction['evolved_from'] != '':
+                    if subtraction['is_unit'] or subtraction['evolved_from'] == "Drone":
+                        if evolved_from in self.units:
+                            self.units[evolved_from] += quan
+                        else:
+                            self.units[evolved_from] = quan
+                    else:
+                        if evolved_from in self.buildings:
+                            self.buildings[evolved_from] += quan
+                        else:
+                            self.buildings[evolved_from] = quan
+
+                origin_supply = find_origin_supply(subtraction)
+
+                if subtraction["supply"] >= 0:
+                    self.supply[0] -= (subtraction["supply"] - origin_supply) * subtraction["quantity"]
+                else:
+                    if origin_supply >= 0:
+                        self.supply[0] += origin_supply * subtraction['quantity']
+                        self.supply[2] += subtraction['supply'] * subtraction['quantity']
+                    else:
+                        self.supply[2] += (subtraction['supply'] - origin_supply) * subtraction['quantity']
+                    self.supply[1] = min(self.supply[2], 200)
+                self.update_build_order()
+                self.update_army()
+            self.urgent = []
+        else:
+            self.units = {"Drone": 12, "Overlord": 1}
+            self.buildings = {"Hatchery": 1}
+            self.supply = [12, 14, 14]
+            self.build_order = []
+            self.update_army()
         self.update_build_order()
 
-    def start_push(self):
-        Process(target=macrobot.main, args=(self.build_order,), daemon=True).start()
+    def start_game(self):
+        self.game_started = True
+        p = Process(target=macrobot.main, args=(self.build_order.copy(), self.child_pipe), daemon=True)
+        p.start()
+        self.after(100, self.form_urgent_complete)
+
+    def form_urgent_complete(self):
+        if self.parent_pipe.poll():
+            msg = self.parent_pipe.recv()
+            if msg == "END":
+                return
+            else:
+                self.urgent = self.urgent[1:]
+                self.update_build_order()
+        self.after(100, self.form_urgent_complete)
+
 
 if __name__ == "__main__":
     root = SC2BotPicker()
