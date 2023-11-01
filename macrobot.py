@@ -152,14 +152,15 @@ def find_entity_id(name):
 class Macrobot(BotAI):
     def __init__(self, output=None, child_pipe=None):
         BotAI.__init__(self)
-        self.up_next: dict = build_order_queue.get()
+        if not build_order_queue.empty():
+            self.up_next: dict = build_order_queue.get()
+        else:
+            self.up_next = None
         self.child_pipe = child_pipe
         self.urgent = Queue()
         self.next_urgent = None
         self.taken_geysers: list[int] = []
         self.bases: list[int] = []
-        self.should_have: list[dict] = [{'name': 'Hatchery', 'quantity': 1, 'is_upgrade': False,
-                                         'is_unit': False, 'evolved_from': 'Drone', 'requires': '', 'supply': -6}]
         self.attack_in: int = 0
         self.should_attack: bool = False
         self.hq = None
@@ -245,26 +246,6 @@ class Macrobot(BotAI):
             return random.choice(self.enemy_structures).position
         return self.enemy_start_locations[0]
 
-    def update_should_have(self, update, entry=None):
-        indices = [1 if elem['name'] == update['name'] else 0 for elem in self.should_have]
-        if any(indices):
-            if self.should_have[indices.index(1)]['quantity'] == -update['quantity']:
-                self.should_have.remove(self.should_have[indices.index(1)])
-            else:
-                self.should_have[indices.index(1)]['quantity'] += update['quantity']
-        else:
-            self.should_have.append(entry)
-
-    async def attack_logic(self, iteration):
-        # Attack when the last item in the build order is complete
-        if self.should_attack:
-            self.attack_in = max(self.attack_in - 1, 0)
-            if self.attack_in <= 0 and iteration % 20 == 0:
-                for unit in self.units:
-                    unit.attack(self.select_target())
-        else:
-            await self.units_to_natural(iteration)
-
     async def build_extractors(self, up_next, iteration):
         while self.can_afford(UnitTypeId.EXTRACTOR) and self.workers and up_next['quantity'] > 0:
             for th in self.townhalls.ready:
@@ -279,7 +260,6 @@ class Macrobot(BotAI):
                     self.taken_geysers.append(available_geysers[0].tag)
                     entry = up_next.copy()
                     entry['quantity'] = 1
-                    self.update_should_have({'name': 'Extractor', 'quantity': 1}, entry=entry)
                     self.output.write({"name": "Extractor", "iteration": iteration}.__str__().replace("'", '"') + ",\n")
                     up_next['quantity'] -= 1
                     break
@@ -300,15 +280,14 @@ class Macrobot(BotAI):
         if not have_idle_hatch:
             self.townhalls.random.train(UnitTypeId.QUEEN)
 
-    async def units_to_natural(self, iteration):
-        if iteration % 50 == 0:
-            combat_units = self.units.exclude_type(UnitTypeId.DRONE).exclude_type(UnitTypeId.QUEEN)
-            combat_units = combat_units.exclude_type(UnitTypeId.OVERLORD)
-            for u in combat_units:
-                if len(self.bases) > 1:
-                    u.attack(self.townhalls.by_tag(self.bases[1]).position.towards(self.game_info.map_center, 10))
-                else:
-                    u.attack(self.townhalls.first.position.towards(self.game_info.map_center, 10))
+    async def units_to_natural(self, ):
+        combat_units = self.units.exclude_type(UnitTypeId.DRONE).exclude_type(UnitTypeId.QUEEN)
+        combat_units = combat_units.exclude_type(UnitTypeId.OVERLORD)
+        for u in combat_units:
+            if len(self.bases) > 1:
+                u.attack(self.townhalls.by_tag(self.bases[1]).position.towards(self.game_info.map_center, 10))
+            else:
+                u.attack(self.townhalls.first.position.towards(self.game_info.map_center, 10))
 
     # Can only morph with the correct ability id.
     async def morph_from_unit(self, up_next):
@@ -343,7 +322,6 @@ class Macrobot(BotAI):
             elif evolved_from == "Spire":
                 self.check_buffer = 1000
                 morpher(AbilityId.UPGRADETOGREATERSPIRE_GREATERSPIRE)
-            self.update_should_have({'name': evolved_from, 'quantity': -1})
         return True
 
     async def build_unit_or_building(self, entity_id, origin_id, up_next, iteration):
@@ -370,7 +348,6 @@ class Macrobot(BotAI):
             if not up_next['is_unit']:
                 entry = up_next.copy()
                 entry['quantity'] = 1
-                self.update_should_have({'name': up_next['name'], 'quantity': 1}, entry=entry)
         self.check_buffer = 300
         return True
 
@@ -422,6 +399,8 @@ class Macrobot(BotAI):
                     self.bases.append(th.tag)
         entity_id = False
         origin_id = False
+        if self.next_urgent is None and not self.urgent.empty():
+            self.next_urgent = self.urgent.get()
         up_next = self.next_urgent or self.up_next
         if up_next:
             try:
@@ -431,7 +410,8 @@ class Macrobot(BotAI):
             if not up_next['is_upgrade'] and up_next['evolved_from'] != '':
                 (origin_id, origin_is_unit) = find_entity_id(up_next['evolved_from'])
 
-        await self.attack_logic(iteration)
+        if iteration % 50 == 0 and not (self.urgent.empty() and build_order_queue.empty()):
+            await self.units_to_natural()
 
         if entity_id and up_next['is_upgrade']:
             if self.can_upgrade(entity_id, up_next):
@@ -448,18 +428,6 @@ class Macrobot(BotAI):
             if up_next['quantity'] <= 0:
                 self.advance_queues(entity_id)
 
-        # Check that you have all buildings you should have
-        # if self.check_buffer > 0:
-        #     self.check_buffer -= 1
-        # elif iteration % 100 == 0:
-        #     for building in self.should_have:
-        #         entity_id = find_entity_id(building['name'])
-        #         if self.structures.of_type(entity_id).amount < building['quantity']:
-        #             correction = building.copy()
-        #             correction['quantity'] = correction['quantity'] - self.structures.of_type(entity_id).amount
-        #             building['quantity'] = self.structures.of_type(entity_id).amount
-        #             self.urgent.put(correction)
-
         # Send idle queens with >=25 energy to inject
         for queen in self.units(UnitTypeId.QUEEN).idle:
             closest_hatch = min(self.townhalls, key=lambda hatch: hatch.distance_to(queen))
@@ -469,7 +437,15 @@ class Macrobot(BotAI):
         await self.distribute_workers(resource_ratio=0)
 
         if self.child_pipe.poll():
-            self.urgent.put(self.child_pipe.recv())
+            msg = self.child_pipe.recv()
+            if msg == "CLEAR":
+                empty = self.urgent.empty()
+                while not empty:
+                    self.urgent.get()
+                    empty = self.urgent.empty()
+                self.next_urgent = None
+            else:
+                self.urgent.put(msg)
 
 def main(build_order, child_pipe):
     import json
@@ -487,6 +463,7 @@ def main(build_order, child_pipe):
     )
     output.write('{"name":"GameEnd"}\n]')
     output.close()
+    child_pipe.send("END")
 
 if __name__ == "__main__":
-    main([])
+    print("Your Starcraft is in another castle!")

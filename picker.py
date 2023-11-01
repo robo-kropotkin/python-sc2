@@ -462,7 +462,7 @@ class SC2BotPicker(Tk):
 
     def clear(self):
         if self.game_started:
-            self.parent_pipe.send("Clear")
+            self.parent_pipe.send("CLEAR")
             for subtraction in self.urgent:
                 if subtraction['is_upgrade']:
                     return self.undo_upgrade(subtraction)
